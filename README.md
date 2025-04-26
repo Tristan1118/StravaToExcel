@@ -33,7 +33,8 @@ python generate_table.py
 ```
 
 The output files will be saved in the output/ directory with the current timestamp in the filename.
-Project Structure
+
+# Project Structure
 
 ```
 StravaToExcel/
