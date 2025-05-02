@@ -18,12 +18,36 @@ pip install pandas
 
 # Usage
 
+Place your client key and secret in client.json
+
+```
+{
+  "client_id": "XXXXX",
+  "client_secret": "XXXXXXXXXXXXXXXXXXXXXXXXX"
+}
+```
+
+Generate a refresh token and place the auth material in auth.json:
+
+```
+{
+  "token_type": "Bearer",
+  "access_token": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
+  "expires_at": XXXXXXX,
+  "expires_in": XXXXX,
+  "refresh_token": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+}
+```
+
+Refresh token with authenticate.py.
+
+
 Export your Strava activities and place the activity JSON files into the activities/ folder and the matching zone JSON files into the zones/ folder. Filenames must match by activity ID.
 
 Export activities:
 
 ```
-python exporter.py BEARER_TOKEN
+python exporter.py
 ```
 
 Generate tables from activities on disk:
