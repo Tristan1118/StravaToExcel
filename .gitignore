@@ -1,3 +1,12 @@
+# Auth material
+client.json
+auth.json
+
+# Activities
+activities/
+output/
+zones/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -75,12 +75,24 @@ def activity_exists(activity_id, output_dir="activities"):
 def zones_exist(activity_id, output_dir="zones"):
     return os.path.exists(os.path.join(output_dir, f"{activity_id}.json"))
 
-def main():
-    parser = argparse.ArgumentParser(description="Export all Strava activities and zones to JSON files.")
-    parser.add_argument("token", help="Strava API Bearer token")
-    args = parser.parse_args()
 
-    token = args.token
+def main():
+    auth_file = "auth.json"
+
+    # Check if auth.json exists
+    if not os.path.exists(auth_file):
+        print(f"Error: {auth_file} not found. Please ensure the file exists and contains a valid access token.")
+        sys.exit(1)
+
+    # Try to load access token
+    try:
+        with open(auth_file, "r") as f:
+            auth_data = json.load(f)
+            token = auth_data["access_token"]
+    except (json.JSONDecodeError, KeyError) as e:
+        print(f"Error reading access token from {auth_file}: {e}")
+        sys.exit(1)
+
     for activity in get_activities(token):
         activity_id = activity["id"]
 
