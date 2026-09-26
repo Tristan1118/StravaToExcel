@@ -2,7 +2,7 @@ import json
 
 import pandas as pd
 
-from generate_table import build_row, build_table
+from generate_table import build_other_row, build_run_row, build_tables
 
 
 def run_activity(**overrides):
@@ -30,7 +30,7 @@ def write_json(path, data):
 
 
 def test_build_row_basic_fields():
-    row = build_row(run_activity(), [])
+    row = build_run_row(run_activity(), [])
 
     assert row['Activity ID'] == 1
     assert row['Moving Time (s)'] == '0:50:00'
@@ -41,11 +41,11 @@ def test_build_row_basic_fields():
 
 
 def test_build_row_race_flag():
-    assert build_row(run_activity(workout_type=1), [])['Race'] == 'Yes'
+    assert build_run_row(run_activity(workout_type=1), [])['Race'] == 'Yes'
 
 
 def test_build_row_missing_speed_and_cadence():
-    row = build_row(run_activity(average_speed=0, average_cadence=None), [])
+    row = build_run_row(run_activity(average_speed=0, average_cadence=None), [])
 
     assert row['Pace (min/km)'] is None
     assert row['Avg Cadence (steps/min)'] is None
@@ -56,7 +56,7 @@ def test_build_row_zones():
         {'type': 'heartrate', 'distribution_buckets': [{'time': t} for t in [10, 20, 30, 40, 50]]},
         {'type': 'pace', 'distribution_buckets': [{'time': t} for t in [1, 2, 3, 4, 5, 6, 7]]},
     ]
-    row = build_row(run_activity(), zones)
+    row = build_run_row(run_activity(), zones)
 
     assert row['Heart Rate - Zone 1'] == 10
     assert row['Heart Rate - Zone 5'] == 50
@@ -64,21 +64,52 @@ def test_build_row_zones():
     assert 'Pace - Zone 7' not in row
 
 
-def test_build_table_skips_non_runs_and_handles_missing_zones(tmp_path):
+def test_build_other_row_ride():
+    ride = run_activity(sport_type='Ride', name='Commute', average_speed=5.0, average_watts=180.0)
+    zones = [
+        {'type': 'heartrate', 'distribution_buckets': [{'time': 60}, {'time': 120}]},
+        {'type': 'power', 'distribution_buckets': [{'time': 5}]},
+    ]
+    row = build_other_row(ride, zones)
+
+    assert row['Sport Type'] == 'Ride'
+    assert row['Avg Speed (km/h)'] == 18.0
+    assert row['Avg Watts'] == 180.0
+    assert row['Heart Rate - Zone 2'] == 120
+    assert 'Pace (min/km)' not in row
+
+
+def test_build_other_row_without_gps():
+    workout = run_activity(sport_type='WeightTraining', distance=0.0, total_elevation_gain=0,
+                           average_speed=0.0)
+    row = build_other_row(workout, [])
+
+    assert row['Distance (m)'] is None
+    assert row['Elevation Gain (m)'] is None
+    assert row['Avg Speed (km/h)'] is None
+
+
+def test_build_tables_splits_runs_and_other(tmp_path):
     activities = tmp_path / 'activities'
     zones = tmp_path / 'zones'
     activities.mkdir()
     zones.mkdir()
 
-    write_json(activities / '1.json', run_activity(id=1))
+    write_json(activities / '1.json', run_activity(id=1, start_date_local='2025-05-03T07:00:00Z'))
     write_json(activities / '2.json', run_activity(id=2, sport_type='Ride'))
-    write_json(activities / '3.json', run_activity(id=3))
+    write_json(activities / '3.json', run_activity(id=3, start_date_local='2025-05-02T07:00:00Z'))
+    write_json(activities / '4.json', run_activity(id=4, sport_type='Yoga', distance=0.0))
     write_json(zones / '1.json', [{'type': 'heartrate', 'distribution_buckets': [{'time': 99}]}])
 
-    df = build_table(str(activities), str(zones))
+    runs, other = build_tables(str(activities), str(zones))
 
-    assert sorted(df['Activity ID'].tolist()) == [1, 3]
-    by_id = df.set_index('Activity ID')
+    # Sorted by start date
+    assert runs['Activity ID'].tolist() == [3, 1]
+    by_id = runs.set_index('Activity ID')
     assert by_id.loc[1, 'Heart Rate - Zone 1'] == 99
     assert pd.isna(by_id.loc[3, 'Heart Rate - Zone 1'])
-    assert list(df.columns)[:3] == ['Activity ID', 'Name', 'Start Date (Local)']
+    assert list(runs.columns)[:3] == ['Activity ID', 'Name', 'Start Date (Local)']
+
+    assert sorted(other['Activity ID'].tolist()) == [2, 4]
+    assert sorted(other['Sport Type'].tolist()) == ['Ride', 'Yoga']
+    assert 'Pace (min/km)' not in other.columns

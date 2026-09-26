@@ -1,5 +1,5 @@
 # StravaToExcel
-StravaToExcel processes exported Strava running activities and generates summary tables in CSV and Excel format. It extracts fields such as distance, pace, heart rate, cadence, calories, and time spent in heart rate and pace zones, transforming them into a format ready for spreadsheet analysis.
+StravaToExcel exports Strava activities and generates summary tables in CSV and Excel format: one for runs and one for all other activity types. It extracts fields such as distance, pace, heart rate, cadence, calories, and time spent in heart rate and pace zones, transforming them into a format ready for spreadsheet analysis.
 
 # Installation
 
@@ -63,7 +63,12 @@ Edits to activities that were already downloaded (renames, marking a run as a ra
 uv run generate_table.py
 ```
 
-This writes `output/strava_summary.csv` and `output/strava_summary.xlsx`, overwriting the previous files.
+This writes two tables to `output/` as CSV and Excel, overwriting the previous files:
+
+- `strava_runs.csv` / `.xlsx`: activities with sport type `Run`, including pace, cadence, race flag, and heart rate and pace zones.
+- `strava_other.csv` / `.xlsx`: all other activity types (rides, hikes, swims, weight training, ...) with a `Sport Type` column, average speed in km/h, average watts, and heart rate zones. Fields that don't apply to an activity, such as distance for weight training, are left empty.
+
+Both tables are sorted by start date.
 
 ## Tests
 
@@ -88,4 +93,4 @@ StravaToExcel/
 
 # Notes
 
-Only activities with sport_type == "Run" are processed. If a zone file is missing, the corresponding zone columns will be left empty.
+If a zone file is missing, the corresponding zone columns will be left empty.
