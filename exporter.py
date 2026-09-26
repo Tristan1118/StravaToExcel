@@ -4,6 +4,9 @@ import time
 import argparse
 import requests
 import json
+from datetime import datetime
+
+import authenticate
 
 BASE_URL = "https://www.strava.com/api/v3"
 ACTIVITIES_LIST_ENDPOINT = f"{BASE_URL}/athlete/activities"
@@ -28,15 +31,13 @@ def strava_request(method, url, token, **kwargs):
     response.raise_for_status()
     return response
 
-def get_activities(token, per_page=100):
+def get_activities(token, after=None, per_page=100):
     page = 1
     while True:
-        response = strava_request(
-            "GET",
-            ACTIVITIES_LIST_ENDPOINT,
-            token,
-            params={"page": page, "per_page": per_page},
-        )
+        params = {"page": page, "per_page": per_page}
+        if after is not None:
+            params["after"] = after
+        response = strava_request("GET", ACTIVITIES_LIST_ENDPOINT, token, params=params)
         activities = response.json()
         if not activities:
             break
@@ -75,25 +76,46 @@ def activity_exists(activity_id, output_dir="activities"):
 def zones_exist(activity_id, output_dir="zones"):
     return os.path.exists(os.path.join(output_dir, f"{activity_id}.json"))
 
+def newest_local_start(activities_dir="activities"):
+    """Return the start time (epoch seconds) of the newest downloaded activity, or None."""
+    if not os.path.isdir(activities_dir):
+        return None
+
+    newest = None
+    for filename in os.listdir(activities_dir):
+        if not filename.endswith(".json"):
+            continue
+        with open(os.path.join(activities_dir, filename), "r", encoding="utf-8") as f:
+            start_date = json.load(f).get("start_date")
+        if not start_date:
+            continue
+        # Strava uses a trailing "Z" for UTC
+        timestamp = int(datetime.fromisoformat(start_date.replace("Z", "+00:00")).timestamp())
+        if newest is None or timestamp > newest:
+            newest = timestamp
+    return newest
+
 
 def main():
-    auth_file = "auth.json"
+    parser = argparse.ArgumentParser(description="Download Strava activities and zones as JSON.")
+    parser.add_argument("--all", action="store_true",
+                        help="List all activities instead of only those newer than the newest local one. "
+                             "Existing files are still skipped, so this only fills gaps.")
+    args = parser.parse_args()
 
-    # Check if auth.json exists
-    if not os.path.exists(auth_file):
-        print(f"Error: {auth_file} not found. Please ensure the file exists and contains a valid access token.")
-        sys.exit(1)
-
-    # Try to load access token
     try:
-        with open(auth_file, "r") as f:
-            auth_data = json.load(f)
-            token = auth_data["access_token"]
-    except (json.JSONDecodeError, KeyError) as e:
-        print(f"Error reading access token from {auth_file}: {e}")
+        token = authenticate.get_access_token()
+    except authenticate.AuthError as e:
+        print(f"Error: {e}")
         sys.exit(1)
 
-    for activity in get_activities(token):
+    after = None if args.all else newest_local_start()
+    if after is None:
+        print("Listing all activities...")
+    else:
+        print(f"Listing activities after {datetime.fromtimestamp(after)}...")
+
+    for activity in get_activities(token, after=after):
         activity_id = activity["id"]
 
         # Download and save full activity details
