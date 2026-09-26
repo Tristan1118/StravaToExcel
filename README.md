@@ -10,10 +10,10 @@ git clone https://github.com/Tristan1118/StravaToExcel.git
 cd StravaToExcel
 ```
 
-Install dependencies:
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/), then create the virtual environment and install the dependencies:
 
 ```
-pip install -r requirements.txt
+uv sync
 ```
 
 # Usage
@@ -34,7 +34,7 @@ The variables can also be set in the environment directly, which takes precedenc
 ## 2. Log in (once)
 
 ```
-python authenticate.py --login
+uv run authenticate.py --login
 ```
 
 This opens Strava in the browser. After you approve access, the tokens are saved to `auth.json`. The exporter refreshes the access token automatically when it expires, so this only needs to be repeated if the refresh token is revoked.
@@ -42,7 +42,7 @@ This opens Strava in the browser. After you approve access, the tokens are saved
 ## 3. Export activities
 
 ```
-python exporter.py
+uv run exporter.py
 ```
 
 Activity details are saved to `activities/` and heart rate / pace zones to `zones/`, one JSON file per activity ID.
@@ -52,15 +52,15 @@ The exporter only asks Strava for activities that started after the newest activ
 Use `--all` to list every activity again. Existing files are still skipped, so this only fills gaps, e.g. after an interrupted first run or a failed zones download:
 
 ```
-python exporter.py --all
+uv run exporter.py --all
 ```
 
-Edits to activities that were already downloaded (renames, marking a run as a race) are not picked up. Delete the activity's file in `activities/` and run `python exporter.py --all` to download it again.
+Edits to activities that were already downloaded (renames, marking a run as a race) are not picked up. Delete the activity's file in `activities/` and run `uv run exporter.py --all` to download it again.
 
 ## 4. Generate the table
 
 ```
-python generate_table.py
+uv run generate_table.py
 ```
 
 This writes `output/strava_summary.csv` and `output/strava_summary.xlsx`, overwriting the previous files.
@@ -68,7 +68,7 @@ This writes `output/strava_summary.csv` and `output/strava_summary.xlsx`, overwr
 ## Tests
 
 ```
-python -m pytest
+uv run pytest
 ```
 
 # Project Structure
@@ -79,6 +79,7 @@ StravaToExcel/
 -- zones/             # Zone JSON files
 -- output/            # Generated CSV and Excel files
 -- tests/             # pytest tests
+-- pyproject.toml     # Dependencies (locked in uv.lock)
 -- authenticate.py    # Strava login and token refresh
 -- exporter.py        # Downloads activities and zones from Strava
 -- generate_table.py  # Builds the CSV and Excel tables from the JSON files

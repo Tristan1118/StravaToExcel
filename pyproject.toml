@@ -1,0 +1,21 @@
+[project]
+name = "stravatoexcel"
+version = "0.1.0"
+description = "Export Strava running activities to CSV and Excel tables"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "openpyxl",
+    "pandas",
+    "python-dotenv",
+    "requests",
+]
+
+[dependency-groups]
+dev = [
+    "pytest",
+]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]

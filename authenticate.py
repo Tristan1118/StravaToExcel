@@ -82,7 +82,7 @@ def refresh_access_token(auth_data):
 def get_access_token():
     """Return a valid access token, refreshing it first if it is about to expire."""
     if not os.path.exists(AUTH_FILE):
-        raise AuthError(f"{AUTH_FILE} not found. Run 'python authenticate.py --login' first.")
+        raise AuthError(f"{AUTH_FILE} not found. Run 'uv run authenticate.py --login' first.")
 
     auth_data = load_json(AUTH_FILE)
     if not is_token_valid(auth_data['expires_at']):
