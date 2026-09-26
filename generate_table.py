@@ -3,36 +3,18 @@ import json
 import pandas as pd
 from datetime import datetime, timedelta
 
-# Paths
-activities_dir = './activities'
-zones_dir = './zones'
+ACTIVITIES_DIR = './activities'
+ZONES_DIR = './zones'
+OUTPUT_DIR = './output'
+OUTPUT_NAME = 'strava_summary'
 
-# Prepare rows for final table
-rows = []
+COLUMN_ORDER = [
+    'Activity ID', 'Name', 'Start Date (Local)', 'Distance (m)', 'Moving Time (s)',
+    'Elevation Gain (m)', 'Pace (min/km)', 'Avg Heart Rate', 'Max Heart Rate', 'Avg Cadence (steps/min)', 'Calories', 'Race'
+] + [f'Heart Rate - Zone {i}' for i in range(1, 6)] + [f'Pace - Zone {i}' for i in range(1, 7)]
 
-# List all activity files
-activity_files = [f for f in os.listdir(activities_dir) if f.endswith('.json')]
 
-for activity_file in activity_files:
-    activity_id = os.path.splitext(activity_file)[0]
-
-    # Load activity json
-    with open(os.path.join(activities_dir, activity_file), 'r') as f:
-        activity_data = json.load(f)
-
-    # Skip if not a Run
-    if activity_data.get('sport_type') != 'Run':
-        continue
-
-    # Load zone json
-    zone_path = os.path.join(zones_dir, f'{activity_id}.json')
-    if os.path.exists(zone_path):
-        with open(zone_path, 'r') as f:
-            zone_data = json.load(f)
-    else:
-        zone_data = []
-
-    # Start building a row
+def build_row(activity_data, zone_data):
     row = {}
 
     # Basic fields
@@ -79,34 +61,56 @@ for activity_file in activity_files:
     for zone in zone_data:
         if zone.get('type') == 'heartrate':
             for i, bucket in enumerate(zone.get('distribution_buckets', [])[:5], start=1):
-                seconds = bucket.get('time', 0)
-                row[f'Heart Rate - Zone {i}'] = seconds
+                row[f'Heart Rate - Zone {i}'] = bucket.get('time', 0)
         elif zone.get('type') == 'pace':
             for i, bucket in enumerate(zone.get('distribution_buckets', [])[:6], start=1):
-                seconds = bucket.get('time', 0)
-                row[f'Pace - Zone {i}'] = seconds
+                row[f'Pace - Zone {i}'] = bucket.get('time', 0)
 
-    rows.append(row)
+    return row
 
-# Create DataFrame
-df = pd.DataFrame(rows)
 
-# Sort columns nicely
-desired_order = [
-    'Activity ID', 'Name', 'Start Date (Local)', 'Distance (m)', 'Moving Time (s)',
-    'Elevation Gain (m)', 'Pace (min/km)', 'Avg Heart Rate', 'Max Heart Rate', 'Avg Cadence (steps/min)', 'Calories', 'Race'
-] + [f'Heart Rate - Zone {i}' for i in range(1, 6)] + [f'Pace - Zone {i}' for i in range(1, 7)]
+def build_table(activities_dir=ACTIVITIES_DIR, zones_dir=ZONES_DIR):
+    rows = []
+    activity_files = [f for f in os.listdir(activities_dir) if f.endswith('.json')]
 
-df = df.reindex(columns=[col for col in desired_order if col in df.columns])
+    for activity_file in activity_files:
+        activity_id = os.path.splitext(activity_file)[0]
 
-# Get current date and time
-timestamp = datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+        with open(os.path.join(activities_dir, activity_file), 'r') as f:
+            activity_data = json.load(f)
 
-# Save to CSV and Excel
-csv_filename = f'./output/strava_summary_{timestamp}.csv'
-excel_filename = f'./output/strava_summary_{timestamp}.xlsx'
+        if activity_data.get('sport_type') != 'Run':
+            continue
 
-df.to_csv(csv_filename, index=False)
-df.to_excel(excel_filename, index=False)
+        zone_path = os.path.join(zones_dir, f'{activity_id}.json')
+        if os.path.exists(zone_path):
+            with open(zone_path, 'r') as f:
+                zone_data = json.load(f)
+        else:
+            zone_data = []
 
-print(f"Files saved: {csv_filename}, {excel_filename}")
+        rows.append(build_row(activity_data, zone_data))
+
+    df = pd.DataFrame(rows)
+    return df.reindex(columns=[col for col in COLUMN_ORDER if col in df.columns])
+
+
+def main():
+    df = build_table()
+
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    csv_filename = os.path.join(OUTPUT_DIR, f'{OUTPUT_NAME}.csv')
+    excel_filename = os.path.join(OUTPUT_DIR, f'{OUTPUT_NAME}.xlsx')
+
+    try:
+        df.to_csv(csv_filename, index=False)
+        df.to_excel(excel_filename, index=False)
+    except PermissionError as e:
+        print(f"Error: could not write {e.filename}. Is it open in Excel? Close it and run again.")
+        return
+
+    print(f"Files saved: {csv_filename}, {excel_filename} ({len(df)} runs)")
+
+
+if __name__ == '__main__':
+    main()
