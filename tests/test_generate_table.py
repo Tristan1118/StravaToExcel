@@ -2,6 +2,7 @@ import json
 
 import pandas as pd
 
+import generate_table
 from generate_table import build_other_row, build_run_row, build_tables
 
 
@@ -113,3 +114,15 @@ def test_build_tables_splits_runs_and_other(tmp_path):
     assert sorted(other['Activity ID'].tolist()) == [2, 4]
     assert sorted(other['Sport Type'].tolist()) == ['Ride', 'Yoga']
     assert 'Pace (min/km)' not in other.columns
+
+
+def test_save_table_writes_csv_with_bom(tmp_path, monkeypatch):
+    monkeypatch.setattr(generate_table, 'OUTPUT_DIR', str(tmp_path))
+    df = pd.DataFrame([{'Activity ID': 1, 'Name': 'Tempo 2×3000'}])
+
+    generate_table.save_table(df, 'test')
+
+    raw = (tmp_path / 'test.csv').read_bytes()
+    assert raw.startswith(b'\xef\xbb\xbf')
+    assert 'Tempo 2×3000' in raw.decode('utf-8-sig')
+    assert (tmp_path / 'test.xlsx').exists()

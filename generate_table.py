@@ -144,7 +144,8 @@ def save_table(df, name):
     excel_filename = os.path.join(OUTPUT_DIR, f'{name}.xlsx')
 
     try:
-        df.to_csv(csv_filename, index=False)
+        # BOM so Excel detects UTF-8 (e.g. '×' in activity names)
+        df.to_csv(csv_filename, index=False, encoding='utf-8-sig')
         df.to_excel(excel_filename, index=False)
     except PermissionError as e:
         print(f"Error: could not write {e.filename}. Is it open in Excel? Close it and run again.")
