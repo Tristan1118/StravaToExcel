@@ -13,50 +13,63 @@ cd StravaToExcel
 Install dependencies:
 
 ```
-pip install pandas
+pip install -r requirements.txt
 ```
 
 # Usage
 
-Place your client key and secret in client.json
+## 1. Credentials
+
+Create an API application at https://www.strava.com/settings/api and set its **Authorization Callback Domain** to `localhost`.
+
+Copy `.env.example` to `.env` and fill in the client ID and secret:
 
 ```
-{
-  "client_id": "XXXXX",
-  "client_secret": "XXXXXXXXXXXXXXXXXXXXXXXXX"
-}
+STRAVA_CLIENT_ID=XXXXX
+STRAVA_CLIENT_SECRET=XXXXXXXXXXXXXXXXXXXXXXXXX
 ```
 
-Generate a refresh token and place the auth material in auth.json:
+The variables can also be set in the environment directly, which takes precedence over `.env`.
+
+## 2. Log in (once)
 
 ```
-{
-  "token_type": "Bearer",
-  "access_token": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX",
-  "expires_at": XXXXXXX,
-  "expires_in": XXXXX,
-  "refresh_token": "XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
-}
+python authenticate.py --login
 ```
 
-Refresh token with authenticate.py.
+This opens Strava in the browser. After you approve access, the tokens are saved to `auth.json`. The exporter refreshes the access token automatically when it expires, so this only needs to be repeated if the refresh token is revoked.
 
-
-Export your Strava activities and place the activity JSON files into the activities/ folder and the matching zone JSON files into the zones/ folder. Filenames must match by activity ID.
-
-Export activities:
+## 3. Export activities
 
 ```
 python exporter.py
 ```
 
-Generate tables from activities on disk:
+Activity details are saved to `activities/` and heart rate / pace zones to `zones/`, one JSON file per activity ID.
+
+The exporter only asks Strava for activities that started after the newest activity already in `activities/`, so after the first run it makes a single list request plus one request per new activity. Requests are throttled to stay within Strava's rate limits.
+
+Use `--all` to list every activity again. Existing files are still skipped, so this only fills gaps, e.g. after an interrupted first run or a failed zones download:
+
+```
+python exporter.py --all
+```
+
+Edits to activities that were already downloaded (renames, marking a run as a race) are not picked up. Delete the activity's file in `activities/` and run `python exporter.py --all` to download it again.
+
+## 4. Generate the table
 
 ```
 python generate_table.py
 ```
 
-The output files will be saved in the output/ directory with the current timestamp in the filename.
+This writes `output/strava_summary.csv` and `output/strava_summary.xlsx`, overwriting the previous files.
+
+## Tests
+
+```
+python -m pytest
+```
 
 # Project Structure
 
@@ -65,8 +78,10 @@ StravaToExcel/
 -- activities/        # Activity JSON files
 -- zones/             # Zone JSON files
 -- output/            # Generated CSV and Excel files
--- generate_table.py  # Main script to process activities
--- exporter.py        # Helper script to export tables
+-- tests/             # pytest tests
+-- authenticate.py    # Strava login and token refresh
+-- exporter.py        # Downloads activities and zones from Strava
+-- generate_table.py  # Builds the CSV and Excel tables from the JSON files
 -- README.md
 ```
 
